@@ -3,6 +3,7 @@ package com.example.aufgabe3.ui.add
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -10,18 +11,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.aufgabe3.model.BookingEntry
 import com.example.aufgabe3.viewmodel.SharedViewModel
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import com.kizitonwose.calendar.compose.WeekCalendar
-import com.kizitonwose.calendar.compose.weekcalendar.rememberWeekCalendarState
-import com.kizitonwose.calendar.core.WeekDay
-import com.kizitonwose.calendar.core.atStartOfMonth
-import com.kizitonwose.calendar.core.yearMonth
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,8 +30,7 @@ fun AddScreen(
     var name by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf<LocalDate?>(null) }
     var endDate by remember { mutableStateOf<LocalDate?>(null) }
-    var showDatePicker by remember { mutableStateOf(false) }
-
+    var showCalendar by remember { mutableStateOf(false) }
     val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
     Scaffold(
@@ -46,6 +43,11 @@ fun AddScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showCalendar = true }) {
+                Text("+", fontSize = 24.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
         }
     ) { innerPadding ->
         Column(
@@ -74,7 +76,7 @@ fun AddScreen(
                 readOnly = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showDatePicker = true },
+                    .clickable { showCalendar = true },
                 colors = OutlinedTextFieldDefaults.colors(
                     disabledTextColor = MaterialTheme.colorScheme.onSurface,
                 )
@@ -91,77 +93,78 @@ fun AddScreen(
                         navController.popBackStack()
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Text("Save")
             }
         }
     }
 
-    if (showDatePicker) {
-        DateRangePickerDialog(
+    if (showCalendar) {
+        CalendarRangePickerDialog(
             onDateRangeSelected = { start, end ->
                 startDate = start
                 endDate = end
-                showDatePicker = false
+                showCalendar = false
             },
-            onDismissRequest = {
-                showDatePicker = false
-            }
+            onDismissRequest = { showCalendar = false }
         )
     }
 }
 
 @Composable
-fun DateRangePickerDialog(
+fun CalendarRangePickerDialog(
     onDateRangeSelected: (LocalDate, LocalDate) -> Unit,
     onDismissRequest: () -> Unit
 ) {
     var startDate by remember { mutableStateOf<LocalDate?>(null) }
     var endDate by remember { mutableStateOf<LocalDate?>(null) }
-
-    val currentDate = remember { LocalDate.now() }
     val currentMonth = remember { YearMonth.now() }
-    val startDateBoundary = remember { currentMonth.minusMonths(100).atStartOfMonth() }
-    val endDateBoundary = remember { currentMonth.plusMonths(100).atEndOfMonth() }
-    val state = rememberWeekCalendarState(
-        startDate = startDateBoundary,
-        endDate = endDateBoundary,
-        firstVisibleWeekDate = currentDate,
-        firstDayOfWeek = java.time.DayOfWeek.MONDAY
-    )
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text("Select Date Range") },
         text = {
-            Column {
-                WeekCalendar(
-                    state = state,
-                    dayContent = { day ->
-                        Day(day, startDate, endDate) { clickedDate ->
-                            when {
-                                startDate == null -> startDate = clickedDate
-                                endDate == null && clickedDate > startDate -> endDate = clickedDate
-                                else -> {
-                                    startDate = clickedDate
-                                    endDate = null
-                                }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                CalendarView(
+                    currentMonth = currentMonth,
+                    startDate = startDate,
+                    endDate = endDate,
+                    onDayClick = { selectedDate ->
+                        if (startDate == null || (endDate != null && selectedDate < startDate)) {
+                            startDate = selectedDate
+                            endDate = null
+                        } else if (startDate != null && endDate == null) {
+                            if (selectedDate >= startDate!!) {
+                                endDate = selectedDate
+                            } else {
+                                startDate = selectedDate
                             }
+                        } else {
+                            startDate = selectedDate
+                            endDate = null
                         }
                     }
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Selected Range: ${startDate?.toString() ?: "None"} to ${endDate?.toString() ?: "None"}")
+
+                Text(
+                    text = "Selected Range: ${startDate?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: "None"} to ${endDate?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy")) ?: "None"}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    startDate?.let { start ->
-                        endDate?.let { end ->
-                            onDateRangeSelected(start, end)
-                        }
+                    if (startDate != null && endDate != null) {
+                        onDateRangeSelected(startDate!!, endDate!!)
                     }
                 },
                 enabled = startDate != null && endDate != null
@@ -178,23 +181,50 @@ fun DateRangePickerDialog(
 }
 
 @Composable
-fun Day(day: WeekDay, startDate: LocalDate?, endDate: LocalDate?, onClick: (LocalDate) -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clickable { onClick(day.date) }
-            .background(
-                when {
-                    day.date == startDate || day.date == endDate -> Color.Blue
-                    startDate != null && endDate != null && day.date > startDate && day.date < endDate -> Color.Red
-                    else -> Color.Transparent
-                }
-            ),
-        contentAlignment = Alignment.Center
-    ) {
+fun CalendarView(
+    currentMonth: YearMonth,
+    startDate: LocalDate?,
+    endDate: LocalDate?,
+    onDayClick: (LocalDate) -> Unit
+) {
+    Column {
         Text(
-            text = day.date.dayOfMonth.toString(),
-            color = if (day.date == startDate || day.date == endDate) Color.White else Color.Black
+            text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(8.dp)
         )
+
+        val daysInMonth = currentMonth.lengthOfMonth()
+        val startDay = LocalDate.of(currentMonth.year, currentMonth.month, 1)
+
+        (0 until daysInMonth).chunked(7).forEach { week ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                week.forEach { day ->
+                    val date = startDay.plusDays(day.toLong())
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clickable { onDayClick(date) }
+                            .background(
+                                when {
+                                    date == startDate || date == endDate -> Color.Blue
+                                    startDate != null && endDate != null && date in startDate..endDate -> Color.LightGray
+                                    else -> Color.Transparent
+                                },
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = date.dayOfMonth.toString(),
+                            color = if (date == startDate || date == endDate) Color.White else Color.Black
+                        )
+                    }
+                }
+            }
+        }
     }
 }
