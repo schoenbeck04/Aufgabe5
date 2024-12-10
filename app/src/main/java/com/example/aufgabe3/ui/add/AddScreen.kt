@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -120,7 +122,7 @@ fun CalendarRangePickerDialog(
 ) {
     var startDate by remember { mutableStateOf<LocalDate?>(null) }
     var endDate by remember { mutableStateOf<LocalDate?>(null) }
-    val currentMonth = remember { YearMonth.now() }
+    var currentMonth by remember { mutableStateOf(YearMonth.now()) } // State für aktuellen Monat
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -131,6 +133,31 @@ fun CalendarRangePickerDialog(
                     .fillMaxWidth()
                     .padding(8.dp)
             ) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Previous Month"
+                        )
+                    }
+
+                    Text(
+                        text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    )
+
+                    IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = "Next Month"
+                        )
+                    }
+                }
+
                 CalendarView(
                     currentMonth = currentMonth,
                     startDate = startDate,
@@ -187,29 +214,42 @@ fun CalendarView(
     endDate: LocalDate?,
     onDayClick: (LocalDate) -> Unit
 ) {
+    val daysInMonth = currentMonth.lengthOfMonth()
+    val startDay = LocalDate.of(currentMonth.year, currentMonth.month, 1)
+    val firstDayOfWeek = startDay.dayOfWeek.value % 7 // 0 = Sonntag, 1 = Montag usw.
+
     Column {
-        Text(
-            text = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(8.dp)
-        )
+        Spacer(modifier = Modifier.height(8.dp))
 
-        val daysInMonth = currentMonth.lengthOfMonth()
-        val startDay = LocalDate.of(currentMonth.year, currentMonth.month, 1)
+        // Woche-Header
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
-        (0 until daysInMonth).chunked(7).forEach { week ->
+        // Tage-Anzeige
+        (0 until firstDayOfWeek + daysInMonth).chunked(7).forEach { week ->
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 week.forEach { day ->
-                    val date = startDay.plusDays(day.toLong())
+                    val date = if (day >= firstDayOfWeek) startDay.plusDays((day - firstDayOfWeek).toLong()) else null
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clickable { onDayClick(date) }
+                            .clickable(enabled = date != null) { date?.let { onDayClick(it) } }
                             .background(
                                 when {
+                                    date == null -> Color.Transparent
                                     date == startDate || date == endDate -> Color.Blue
                                     startDate != null && endDate != null && date in startDate..endDate -> Color.LightGray
                                     else -> Color.Transparent
@@ -218,10 +258,12 @@ fun CalendarView(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = date.dayOfMonth.toString(),
-                            color = if (date == startDate || date == endDate) Color.White else Color.Black
-                        )
+                        if (date != null) {
+                            Text(
+                                text = date.dayOfMonth.toString(),
+                                color = if (date == startDate || date == endDate) Color.White else Color.Black
+                            )
+                        }
                     }
                 }
             }
