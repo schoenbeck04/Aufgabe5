@@ -20,103 +20,121 @@ import com.example.aufgabe3.model.BookingEntry
 import com.example.aufgabe3.viewmodel.SharedViewModel
 import java.time.format.DateTimeFormatter
 
+/**
+ * Repräsentiert den Home-Bildschirm der App, auf dem alle Buchungseinträge angezeigt werden.
+ * Erlaubt das Hinzufügen neuer Buchungen und das Löschen bestehender Einträge.
+ *
+ * @param navController Der NavHostController, der für die Navigation zwischen den Bildschirmen verantwortlich ist.
+ * @param sharedViewModel Das ViewModel, das die Buchungsdaten verwaltet und mit der UI kommuniziert.
+ */
 @Composable
 fun HomeScreen(
     navController: NavHostController,
     sharedViewModel: SharedViewModel
 ) {
+    // Beobachten der Buchungseinträge im ViewModel
     val bookings = sharedViewModel.bookingsEntries.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize()) { // Box als Container für den Inhalt und den FloatingActionButton
+    // Box wird verwendet, um den gesamten Inhalt sowie den FloatingActionButton zu umschließen
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Überschrift hinzufügen
+            // Überschrift, die "BOOKING ENTRIES" anzeigt
             Text(
                 text = "BOOKING ENTRIES",
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier
                     .padding(bottom = 16.dp)
-                    .fillMaxWidth(), // Die Überschrift nimmt die ganze Breite ein
+                    .fillMaxWidth(), // Überschrift nimmt die gesamte Breite ein
                 color = MaterialTheme.colorScheme.primary
             )
 
-            // Prüfen, ob Buchungen vorhanden sind
+            // Überprüfen, ob Buchungen vorhanden sind
             if (bookings.value.isEmpty()) {
+                // Text anzeigen, wenn keine Buchungen vorhanden sind
                 Text("No bookings available.")
             } else {
+                // LazyColumn wird verwendet, um die Buchungen in einer scrollbaren Liste darzustellen
                 LazyColumn {
                     items(bookings.value) { booking ->
+                        // Für jede Buchung wird das BookingEntryItem-Element erstellt
                         BookingEntryItem(
                             booking = booking,
-                            onDelete = { sharedViewModel.deleteBookingEntry(booking) }
+                            onDelete = { sharedViewModel.deleteBookingEntry(booking) } // Löschen der Buchung
                         )
                     }
                 }
             }
         }
 
-        // FloatingActionButton am unteren rechten Rand
+        // FloatingActionButton für das Hinzufügen einer neuen Buchung
         FloatingActionButton(
-            onClick = { navController.navigate("add") },
+            onClick = { navController.navigate("add") }, // Navigiert zum AddScreen, wenn der Button gedrückt wird
             modifier = Modifier
                 .align(Alignment.BottomEnd) // Positioniert den Button rechts unten
                 .padding(16.dp) // Etwas Abstand vom Rand
         ) {
+            // Das Symbol für das Hinzufügen einer Buchung
             Icon(Icons.Filled.Add, contentDescription = "Add Booking", tint = Color.White)
         }
     }
 }
 
-
+/**
+ * Repräsentiert das UI-Element für einen einzelnen Buchungseintrag in der Liste.
+ * Enthält die Buchungsdetails und ermöglicht das Löschen des Eintrags.
+ *
+ * @param booking Der Buchungseintrag, der angezeigt werden soll.
+ * @param onDelete Die Funktion, die ausgeführt wird, wenn der Benutzer auf das Löschen-Symbol klickt.
+ */
 @Composable
 fun BookingEntryItem(
     booking: BookingEntry,
     onDelete: () -> Unit
 ) {
-    // Card to wrap the booking entry
+    // Card, die den Buchungseintrag umhüllt und die visuelle Darstellung aufwertet
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { /* Optional: Add onClick logic here if needed */ },
-        shape = RoundedCornerShape(12.dp),
+            .fillMaxWidth() // Card nimmt die gesamte Breite ein
+            .padding(vertical = 8.dp) // Vertikale Abstände zwischen den Cards
+            .clickable { /* Optional: Hier kann zusätzliche Logik für Klicks hinzugefügt werden */ },
+        shape = RoundedCornerShape(12.dp), // Abgerundete Ecken der Card
     ) {
-        // Row for horizontal layout of details
+        // Row für die horizontale Anordnung der Buchungsdetails
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(16.dp) // Padding innerhalb der Row
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween, // Platzierung der Elemente am linken und rechten Rand
+            verticalAlignment = Alignment.CenterVertically // Zentriert die Elemente vertikal
         ) {
-            // Column for the booking details (name, arrival, departure)
+            // Column für die Buchungsdetails (Name, Ankunfts- und Abreisedatum)
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f) // Column nimmt den verbleibenden Platz ein
             ) {
+                // Text für den Namen der Buchung
                 Text(
                     text = "Name: ${booking.name}",
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 16.dp) // Padding nach unten
                 )
+                // Text für das Start- und Enddatum der Buchung
                 Text(
-                    text = "Arrival: ${booking.arrivalDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(bottom = 2.dp)
-                )
-                Text(
-                    text = "Departure: ${booking.departureDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))}",
-                    style = MaterialTheme.typography.bodyMedium
+                    text = "${booking.startDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))} - ${booking.endDate.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))} ",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(bottom = 10.dp) // Padding nach unten
                 )
             }
 
-            // Button to delete the booking entry
+            // Button zum Löschen des Buchungseintrags
             IconButton(
-                onClick = onDelete,
-                modifier = Modifier.align(Alignment.CenterVertically)
+                onClick = onDelete, // Löscht die Buchung, wenn der Button gedrückt wird
+                modifier = Modifier.align(Alignment.CenterVertically) // Vertikale Zentrierung des Buttons
             ) {
+                // Das Löschen-Symbol, das den Benutzer zum Löschen der Buchung auffordert
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = "Delete Booking",
-                    tint = MaterialTheme.colorScheme.error
+                    tint = MaterialTheme.colorScheme.error // Rote Farbe für das Löschen-Symbol
                 )
             }
         }
